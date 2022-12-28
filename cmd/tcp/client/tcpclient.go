@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -23,6 +24,10 @@ var (
 
 func main() {
 	flag.Parse()
+
+	// go func() {
+	// 	http.ListenAndServe(":8080", nil)
+	// }()
 
 	localPorts := strings.Split(*localPorts, ",")
 	serverPorts := strings.Split(*serverPorts, ",")

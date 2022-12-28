@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"io"
 	"log"
 	"net"
 )
@@ -49,16 +50,21 @@ func (s *Server) handleConn(conn *net.TCPConn) {
 	conn.SetReadBuffer(20 * 1024 * 1024)
 	conn.SetWriteBuffer(20 * 1024 * 1024)
 
-	data := make([]byte, 2048)
+	// data := make([]byte, 2048)
 	for {
-		n, err := conn.Read(data)
+		// n, err := conn.Read(data)
+		// if err != nil {
+		// 	log.Fatalf("failed to read: %v", err)
+		// }
+		// if n <= 0 {
+		// 	continue
+		// }
+
+		// conn.Write(data[:n])
+
+		_, err := io.Copy(conn, conn)
 		if err != nil {
 			log.Fatalf("failed to read: %v", err)
 		}
-		if n <= 0 {
-			continue
-		}
-
-		conn.Write(data[:n])
 	}
 }
