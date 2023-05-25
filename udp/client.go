@@ -82,9 +82,9 @@ func (c *Client) read() {
 		}
 
 		seq := binary.LittleEndian.Uint64(data[:8])
-		//ts := binary.LittleEndian.Uint64(data[8:16])
+		ts := binary.LittleEndian.Uint64(data[8:16])
 
-		c.stats.AddRecv(seq, time.Now().UnixNano())
+		c.stats.AddRecv(seq, int64(ts))
 	}
 }
 
