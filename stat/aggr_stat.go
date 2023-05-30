@@ -21,7 +21,7 @@ func NewAggrStat() *AggrStat {
 func (as *AggrStat) addStat(st *Stat) {
 	as.statsMu.Lock()
 	as.stats[st.Timestamp] = append(as.stats[st.Timestamp], st)
-	if len(as.stats) == 5 {
+	if len(as.stats) == 30 {
 		min := int64(math.MaxInt64)
 		for ts := range as.stats {
 			if ts < min {

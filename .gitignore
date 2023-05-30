@@ -18,3 +18,5 @@ cmd/udp/client/client
 cmd/udp/server/server
 cmd/tcp/client/client
 cmd/tcp/server/server
+cmd/raw/client/client
+cmd/raw/server/server

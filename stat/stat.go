@@ -34,8 +34,9 @@ func NewStats(key string, aggrStat *AggrStat) *Stats {
 type Stat struct {
 	Timestamp int64 // 按秒粒度的时间戳
 
-	Sent map[uint64]int64 // 发送记录, key为seq
-	Recv map[uint64]int64 // 接收记录, key为seq
+	StatMu sync.Mutex
+	Sent   map[uint64]int64 // 发送记录, key为seq
+	Recv   map[uint64]int64 // 接收记录, key为seq
 }
 
 func NewStat(ts int64) *Stat {
@@ -50,7 +51,7 @@ func NewStat(ts int64) *Stat {
 func (ss *Stats) AddSent(seq uint64, ts int64) {
 	key := ts / int64(time.Second)
 	ss.statsMapMu.Lock()
-	st := ss.statsMap[key]
+	st := ss.statsMap[key] // 寻找篮子
 	if st == nil {
 		st = NewStat(key)
 		ss.statsMap[key] = st
@@ -61,7 +62,9 @@ func (ss *Stats) AddSent(seq uint64, ts int64) {
 	}
 	ss.statsMapMu.Unlock()
 
+	st.StatMu.Lock()
 	st.Sent[seq] = ts
+	st.StatMu.Unlock()
 
 }
 
@@ -76,20 +79,21 @@ func (ss *Stats) AddRecv(seq uint64, ts int64) {
 	}
 	ss.statsMapMu.RUnlock()
 
-	st.Recv[seq] = ts
+	st.StatMu.Lock()
+	st.Recv[seq] = time.Now().UnixNano()
+	st.StatMu.Unlock()
 
 }
 
 func (ss *Stats) process() {
 	for st := range ss.ch {
 		ss.stats = append(ss.stats, st)
-		for len(ss.stats) > 10 {
+		for len(ss.stats) > 20 {
 			st := ss.stats[0]
 			ss.stats = ss.stats[1:]
 			ss.statsMapMu.Lock()
 			delete(ss.statsMap, st.Timestamp)
 			ss.statsMapMu.Unlock()
-
 			ss.aggrStat.addStat(st)
 			// printStat(ss.key, st)
 		}
@@ -122,6 +126,8 @@ func printStat(key string, st *Stat) {
 func (ss *Stats) Close() {
 	// drain
 	for _, st := range ss.stats {
+		st.StatMu.Lock()
 		printStat(ss.key, st)
+		st.StatMu.Unlock()
 	}
 }

@@ -20,7 +20,7 @@ func NewServer(addr string, portMin, portMax int) *Server {
 
 func (s *Server) Run() {
 	// 每个端口一个goroutine
-	for i := s.portMin; i < s.portMax; i++ {
+	for i := s.portMin; i <= s.portMax; i++ {
 		go s.runByPort(i)
 	}
 }
