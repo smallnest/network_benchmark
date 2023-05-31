@@ -3,7 +3,6 @@ package raw
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"net"
 	"os"
 	"sync/atomic"
@@ -12,7 +11,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/kataras/golog"
-	"github.com/smallnest/network_benchmark/stat"
+	"github.com/smallnest/network_benchmark/stat2"
 	"go.uber.org/ratelimit"
 	"golang.org/x/net/bpf"
 	"golang.org/x/net/ipv4"
@@ -27,10 +26,10 @@ type Client struct {
 	rate        int
 
 	conn  *net.TCPConn
-	stats *stat.Stats
+	stats *stat2.Stats
 }
 
-func NewClient(localAddr string, localPorts []int, serverAddr string, serverPorts []int, pktSize int, rate int, aggrStat *stat.AggrStat) *Client {
+func NewClient(localAddr string, localPorts []int, serverAddr string, serverPorts []int, pktSize int, rate int) *Client {
 	return &Client{
 		localAddr:   localAddr,
 		localPorts:  localPorts,
@@ -38,19 +37,12 @@ func NewClient(localAddr string, localPorts []int, serverAddr string, serverPort
 		serverPorts: serverPorts,
 		pktSize:     pktSize,
 		rate:        rate,
-		stats:       stat.NewStats(fmt.Sprintf("%s:%v->%s:%v", localAddr, localPorts, serverAddr, serverPorts), aggrStat),
+		stats:       stat2.NewStats(10 * time.Second),
 	}
 }
 
 func (c *Client) Run() {
-	// srcAddr := &net.TCPAddr{IP: net.ParseIP(c.localAddr), Port: c.localPort}
-	// dstAddr := &net.TCPAddr{IP: net.ParseIP(c.serverAddr), Port: c.serverPort}
-
-	// conn, err := net.DialTCP("tcp", srcAddr, dstAddr)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
+	// 一个goroutine接收响应
 	go c.read()
 
 	localIP := net.ParseIP(c.localAddr).To4()
@@ -58,13 +50,13 @@ func (c *Client) Run() {
 
 	var seq uint64
 
+	// 每个端口单独一个goroutine发送数据
 	for i := 0; i < len(c.localPorts); i++ {
 		localPort := c.localPorts[i]
 		serverPort := c.serverPorts[i]
 
 		// fmt.Println("localPort:", localPort, "serverPort:", serverPort)
 
-		// 每个端口单独一个goroutine发送数据
 		go func() {
 			conn, err := net.ListenPacket("ip4:udp", c.localAddr)
 			if err != nil {
@@ -140,7 +132,6 @@ func encodeUDPPacket(localIP, remoteIP net.IP, localPort, remotePort uint16, tos
 }
 
 func (c *Client) read() {
-
 	conn, err := net.ListenPacket("ip4:udp", c.localAddr)
 	if err != nil {
 		golog.Fatalf("failed to ListenPacket: %v", err)

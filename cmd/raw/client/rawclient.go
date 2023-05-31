@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/smallnest/network_benchmark/raw"
-	"github.com/smallnest/network_benchmark/stat"
 )
 
 var (
@@ -35,8 +34,6 @@ func main() {
 
 	rate := *rate / count
 
-	var aggrStat = stat.NewAggrStat()
-
 	var lPorts []int
 	var sPorts []int
 
@@ -45,7 +42,7 @@ func main() {
 		sPorts = append(sPorts, sportMin+i)
 	}
 
-	client := raw.NewClient(*localAddr, lPorts, *serverAddr, sPorts, *pkgSize, rate, aggrStat)
+	client := raw.NewClient(*localAddr, lPorts, *serverAddr, sPorts, *pkgSize, rate)
 	go client.Run()
 
 	sigs := make(chan os.Signal, 1)
