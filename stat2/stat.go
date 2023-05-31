@@ -33,8 +33,12 @@ func NewStats(delay time.Duration) *Stats {
 type Bucket struct {
 	Timestamp int64 // 按秒粒度的时间戳
 
-	StatMu sync.Mutex
+	// StatMu sync.Mutex
+
+	SentMu sync.RWMutex
 	Sent   map[uint64]int64 // 发送记录, key为seq
+
+	RecvMu sync.RWMutex
 	Recv   map[uint64]int64 // 接收记录, key为seq
 }
 
@@ -44,12 +48,6 @@ func NewBucket(ts int64) *Bucket {
 		Sent:      make(map[uint64]int64),
 		Recv:      make(map[uint64]int64),
 	}
-}
-
-func (st *Bucket) WithLock(f func()) {
-	st.StatMu.Lock()
-	f()
-	st.StatMu.Unlock()
 }
 
 // 输出此篮子的聚合信息
@@ -88,9 +86,9 @@ func (ss *Stats) AddSent(seq uint64, ts int64) {
 	}
 	ss.statsMapMu.Unlock()
 
-	bucket.WithLock(func() {
-		bucket.Sent[seq] = ts
-	})
+	bucket.SentMu.Lock()
+	bucket.Sent[seq] = ts
+	bucket.SentMu.Unlock()
 }
 
 // AddRecv 添加接收记录
@@ -104,9 +102,9 @@ func (ss *Stats) AddRecv(seq uint64, ts int64) {
 	}
 	ss.statsMapMu.RUnlock()
 
-	bucket.WithLock(func() {
-		bucket.Recv[seq] = time.Now().UnixNano()
-	})
+	bucket.RecvMu.Lock()
+	bucket.Recv[seq] = time.Now().UnixNano()
+	bucket.RecvMu.Unlock()
 
 }
 
@@ -122,9 +120,12 @@ func (ss *Stats) process() {
 
 		// 显示最久的聚合的数据
 		bucket := st.(*Bucket)
-		bucket.WithLock(func() {
-			bucket.PrintStat()
-		})
+
+		bucket.SentMu.RLock()
+		bucket.RecvMu.RLock()
+		bucket.PrintStat()
+		bucket.RecvMu.RUnlock()
+		bucket.SentMu.RUnlock()
 
 		<-ticker.C
 	}
@@ -134,9 +135,11 @@ func (ss *Stats) Close() {
 	// drain
 	for {
 		if bucket, ok := heap.Pop(ss.sq).(*Bucket); ok {
-			bucket.WithLock(func() {
-				bucket.PrintStat()
-			})
+			bucket.SentMu.RLock()
+			bucket.RecvMu.RLock()
+			bucket.PrintStat()
+			bucket.RecvMu.RUnlock()
+			bucket.SentMu.RUnlock()
 		}
 	}
 }

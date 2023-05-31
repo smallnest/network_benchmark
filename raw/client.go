@@ -175,25 +175,36 @@ func (c *Client) readResponse(conn net.PacketConn) {
 }
 
 func (c *Client) handlePacket(remoteAddr net.Addr, pkt []byte) {
-	// Decode a packet
-	packet := gopacket.NewPacket(pkt, layers.LayerTypeUDP, gopacket.NoCopy)
-	// Get the TCP layer from this packet
-	if udpLayer := packet.Layer(layers.LayerTypeUDP); udpLayer != nil {
-		app := packet.ApplicationLayer()
-		if app == nil {
-			return
-		}
-		payload := app.Payload()
-		if len(payload) != c.pktSize {
-			return
-		}
-
-		seq := binary.LittleEndian.Uint64(payload[:8])
-		ts := binary.LittleEndian.Uint64(payload[8:16])
-
-		// fmt.Println("seq:", seq, "ts:", ts)
-		c.stats.AddRecv(seq, int64(ts))
+	if len(pkt) < c.pktSize {
+		return
 	}
+
+	payload := pkt[len(pkt)-c.pktSize:]
+	seq := binary.LittleEndian.Uint64(payload[:8])
+	ts := binary.LittleEndian.Uint64(payload[8:16])
+
+	// fmt.Println("seq:", seq, "ts:", ts)
+	c.stats.AddRecv(seq, int64(ts))
+
+	// // Decode a packet
+	// packet := gopacket.NewPacket(pkt, layers.LayerTypeUDP, gopacket.NoCopy)
+	// // Get the TCP layer from this packet
+	// if udpLayer := packet.Layer(layers.LayerTypeUDP); udpLayer != nil {
+	// 	app := packet.ApplicationLayer()
+	// 	if app == nil {
+	// 		return
+	// 	}
+	// 	payload := app.Payload()
+	// 	if len(payload) != c.pktSize {
+	// 		return
+	// 	}
+
+	// 	seq := binary.LittleEndian.Uint64(payload[:8])
+	// 	ts := binary.LittleEndian.Uint64(payload[8:16])
+
+	// 	// fmt.Println("seq:", seq, "ts:", ts)
+	// 	c.stats.AddRecv(seq, int64(ts))
+	// }
 }
 
 func (c *Client) Close() {
